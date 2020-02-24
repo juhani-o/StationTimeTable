@@ -8,14 +8,13 @@ import {
   StatusBar
 } from 'react-native';
 
-import styles from './components/css';
+import styles from './components/Css';
+import { getFullTrainUrl, getSimpleShortTime, getStationNameByCode } from './components/Helpers';
 import Autocomplete from 'react-native-autocomplete-input';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import { Table, TableWrapper, Row, Rows, Col, Cols, Cell } from 'react-native-table-component';
 
 const API_STATIONS = 'https://rata.digitraffic.fi/api/v1/metadata/stations';
-const API_TRAINS = 'https://rata.digitraffic.fi/api/v1/live-trains/station/';
-const API_TRAINS_PARAMS = 'arrived_trains=0&arriving_trains=20&departed_trains=0&departing_trains=20&include_nonstopping=false&train_categories=Commuter,Long-distance';
 const CANCELLED = "Cancelled";
 const AUTOCOMPLETE_PLACEHOLDER = "Valtse asema";
 
@@ -37,45 +36,6 @@ class App extends Component {
       tableDataDepartures : [],
     };
   }
-
-
-/*
- *  Return time in HH:mm format.
- *  @param dateItem  Date in string format
- */
-
-  getSimpleShortTime(dateItem) {
-    try {
-      if (dateItem != undefined) {
-        const dateDateItem = new Date(dateItem);
-        const returnTime = dateDateItem.getHours().toString() + ':' + 
-            (dateDateItem.getMinutes().toString().length == 1 ? '0' +
-             dateDateItem.getMinutes().toString(): dateDateItem.getMinutes().toString());
-        return returnTime;
-      } else {
-        return '';
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-/*
- *  Return full station name
- *  @param stationCode short code for station
- */
-
-  getStationNameByCode(stationCode) {
-    try {
-      const result = this.state.stations.filter(station => {
-        return stationCode == station.stationShortCode;
-      });
-      return result[0].stationName;
-    } catch(error) {
-      console.log(error);
-    }
-  }
-
 
 /*
  *  Create lists for arriving and departing trains.
@@ -101,10 +61,10 @@ class App extends Component {
         result.map(timeTableItem => {
 
           const tableItem = [trainText,
-              this.getStationNameByCode(startStation),
-              this.getStationNameByCode(endStation), [
-                this.getSimpleShortTime(timeTableItem.scheduledTime),
-                this.getSimpleShortTime(timeTableItem.actualTime),
+              getStationNameByCode(startStation, this.state.stations),
+              getStationNameByCode(endStation, this.state.stations), [
+                getSimpleShortTime(timeTableItem.scheduledTime),
+                getSimpleShortTime(timeTableItem.actualTime),
                 isCancelled]
           ];
 
@@ -156,25 +116,12 @@ class App extends Component {
 
   async getTrains(stationName) {
     try {
-      const fullTrainsURL = this.getFullTrainUrl(stationName);
+      const fullTrainsURL = getFullTrainUrl(stationName);
       const response = await fetch(`${fullTrainsURL}`);
       const json = await response.json();
       this.setState({ trains: json });
     } catch (error) {
       console.log(error);
-    }
-  }
-
-  /*
-   *  Return URL for fetching trains
-   */
-
-  getFullTrainUrl(result) {
-    const { query,stationsc } = result;
-    if (query != null) {
-      return (API_TRAINS + stationsc + '/?' + API_TRAINS_PARAMS);
-    } else {
-      return '';
     }
   }
 
@@ -193,15 +140,14 @@ class App extends Component {
    *  Used by autocomplete view
    */
 
-  findStation = (query) => {
+  findStation = (query, _stations) => {
 
     if (query === '') {
       return [];
     }
-
-    const { stations } = this.state;
+    //const { stations } = this.state;
     const regex = new RegExp(`${query.trim()}`, 'i');
-    return stations.filter(station => station.stationName.search(regex) >= 0);
+    return _stations.filter(station => station.stationName.search(regex) >= 0);
   }
 
   /*
@@ -293,7 +239,7 @@ class App extends Component {
   render() {
     const { query } = this.state;
     const { tableData } = this.state;
-    const stations = this.findStation(query);
+    const stations = this.findStation(query, this.state.stations);
     const comp = (a, b) => a.toLowerCase().trim() === b.toLowerCase().trim();
     const state = this.state;
 
